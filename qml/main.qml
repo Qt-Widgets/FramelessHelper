@@ -14,9 +14,10 @@ Window {
     FramelessHelper {
         id: framelessHelper
 
+        titleBarHeight: 60
+
         Component.onCompleted: {
             addIncludeItem(titleBar)
-            setTitleBarHeight(60)
             addExcludeItem(controls)
         }
     }
@@ -25,6 +26,35 @@ Window {
         anchors.fill: parent
         source: "qrc:/res/background.png"
     }
+
+    /*
+    Rectangle {
+        anchors {
+            fill: parent
+        }
+
+        color: "transparent"
+
+        border {
+            width: 1
+            color: "red"
+        }
+    }
+
+    Rectangle {
+        anchors {
+            fill: parent
+            margins: 4
+        }
+
+        color: "transparent"
+
+        border {
+            width: 1
+            color: "blue"
+        }
+    }
+    */
 
     Item {
         id: titleBar
@@ -46,22 +76,18 @@ Window {
 
         MinimizeButton {
             onClicked: {
-                window.showMinimized();
+                framelessHelper.triggerMinimizeButtonAction();
             }
         }
         MaximizeButton {
-            isMaximized: Window.Maximized === window.visibility
+            maximized: Window.Maximized === window.visibility
             onClicked: {
-                if (Window.Maximized === window.visibility) {
-                    window.showNormal();
-                } else {
-                    window.showMaximized();
-                }
+                framelessHelper.triggerMaximizeButtonAction();
             }
         }
         CloseButton {
             onClicked: {
-                window.close();
+                framelessHelper.triggerCloseButtonAction();
             }
         }
     }

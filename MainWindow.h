@@ -16,10 +16,8 @@ public:
     virtual ~MainWindow();
 
 protected:
+    void updateMaximizeButton(bool maximized);
     void paintEvent(QPaintEvent *event) final;
-    bool event(QEvent *event) final;
-protected:
-    void maximizeButtonClicked();
 private:
     Ui::MainWindow *ui;
 

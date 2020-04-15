@@ -25,8 +25,16 @@ MainWindow::MainWindow(QWidget *parent)
     helper->addExcludeItem(ui->maximizeButton);
     helper->addExcludeItem(ui->closeButton);
 
+    connect(ui->minimizeButton, &QPushButton::clicked,
+            helper, &FramelessHelper::triggerMinimizeButtonAction);
     connect(ui->maximizeButton, &QPushButton::clicked,
-            this, &MainWindow::maximizeButtonClicked);
+            helper, &FramelessHelper::triggerMaximizeButtonAction);
+    connect(ui->closeButton, &QPushButton::clicked,
+            helper, &FramelessHelper::triggerCloseButtonAction);
+
+    connect(helper, &FramelessHelper::maximizedChanged,
+            this, &MainWindow::updateMaximizeButton);
+
     ui->maximizeButton->setIcon(QIcon(QStringLiteral(":/res/maximize-button1.png")));
 
     QTimer::singleShot(100, this, &MainWindow::syncPosition);
@@ -37,6 +45,17 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
+void MainWindow::updateMaximizeButton(bool maximized)
+{
+    if (maximized) {
+        ui->maximizeButton->setIcon(QIcon(QStringLiteral(":/res/maximize-button2.png")));
+        ui->maximizeButton->setToolTip(tr("Restore"));
+    } else {
+        ui->maximizeButton->setIcon(QIcon(QStringLiteral(":/res/maximize-button1.png")));
+        ui->maximizeButton->setToolTip(tr("Maximize"));
+    }
+}
+
 void MainWindow::paintEvent(QPaintEvent *event)
 {
     Q_UNUSED(event);
@@ -44,30 +63,13 @@ void MainWindow::paintEvent(QPaintEvent *event)
     QPainter painter(this);
     QImage backgroundImage(QStringLiteral(":/res/background.png"));
     painter.drawImage(contentsRect(), backgroundImage);
-}
 
-bool MainWindow::event(QEvent *event)
-{
-    if (event->type() == QEvent::WindowStateChange) {
-        if (windowState() & Qt::WindowMaximized) {
-            ui->maximizeButton->setIcon(QIcon(QStringLiteral(":/res/maximize-button2.png")));
-            ui->maximizeButton->setToolTip(tr("Restore"));
-        } else {
-            ui->maximizeButton->setIcon(QIcon(QStringLiteral(":/res/maximize-button1.png")));
-            ui->maximizeButton->setToolTip(tr("Maximize"));
-        }
-    }
-
-    return QWidget::event(event);
-}
-
-void MainWindow::maximizeButtonClicked()
-{
-    if (windowState() & Qt::WindowMaximized) {
-        showNormal();
-    } else {
-        showMaximized();
-    }
+    /*
+    painter.setPen(Qt::red);
+    painter.drawRect(rect().adjusted(0, 0, -1, -1));
+    painter.setPen(Qt::blue);
+    painter.drawRect(rect().adjusted(4, 4, -5, -5));
+    */
 }
 
 void MainWindow::syncPosition()

@@ -29,7 +29,13 @@ void WindowFramelessHelper::componentComplete()
             if (auto rootItem = qobject_cast<QQuickItem *>(obj)) {
                 if (auto window = rootItem->window()) {
                     d->window = window;
+
                     d->helper = new NativeWindowHelper(window, d);
+                    connect(d->helper, &NativeWindowHelper::scaleFactorChanged,
+                            this, &WindowFramelessHelper::scaleFactorChanged);
+                    if (!qFuzzyCompare(d->helper->scaleFactor(), 1.0)) {
+                        emit scaleFactorChanged();
+                    }
                 }
 
                 break;
@@ -204,11 +210,14 @@ void WindowFramelessHelper::removeExcludeItem(QQuickItem *item)
     d->excludeItems.remove(item);
 }
 
-void WindowFramelessHelper::setTitleBarHeight(int v)
+void WindowFramelessHelper::setTitleBarHeight(int value)
 {
     Q_D(WindowFramelessHelper);
 
-    d->titleBarHeight = v;
+    if (value != d->titleBarHeight) {
+        d->titleBarHeight = value;
+        emit titleBarHeightChanged();
+    }
 }
 
 int WindowFramelessHelper::titleBarHeight() const
@@ -216,6 +225,45 @@ int WindowFramelessHelper::titleBarHeight() const
     Q_D(const WindowFramelessHelper);
 
     return d->titleBarHeight;
+}
+
+qreal WindowFramelessHelper::scaleFactor() const
+{
+    Q_D(const WindowFramelessHelper);
+
+    return d->helper ? d->helper->scaleFactor() : 1.0;
+}
+
+void WindowFramelessHelper::triggerMinimizeButtonAction()
+{
+    Q_D(WindowFramelessHelper);
+
+    if (d->window) {
+        auto oldStates = d->window->windowStates();
+        d->window->setWindowStates((oldStates & ~Qt::WindowActive) | Qt::WindowMinimized);
+    }
+}
+
+void WindowFramelessHelper::triggerMaximizeButtonAction()
+{
+    Q_D(WindowFramelessHelper);
+
+    if (d->window) {
+        if (QWindow::Maximized == d->window->visibility()) {
+            d->window->showNormal();
+        } else {
+            d->window->showMaximized();
+        }
+    }
+}
+
+void WindowFramelessHelper::triggerCloseButtonAction()
+{
+    Q_D(WindowFramelessHelper);
+
+    if (d->window) {
+        d->window->close();
+    }
 }
 
 // class WindowFramelessHelperPrivate
@@ -243,12 +291,14 @@ QMargins WindowFramelessHelperPrivate::maximizedMargins() const
 
 bool WindowFramelessHelperPrivate::hitTest(const QPoint &pos) const
 {
+    int scaledTitleBarHeight = titleBarHeight * helper->scaleFactor();
+
     if (!window)
         return false;
-    else if (titleBarHeight == 0)
+    else if (scaledTitleBarHeight == 0)
         return false;
-    else if ((titleBarHeight > 0)
-             && (pos.y() >= titleBarHeight))
+    else if ((scaledTitleBarHeight > 0)
+             && (pos.y() >= scaledTitleBarHeight))
         return false;
 
     auto rootItem = window->contentItem();

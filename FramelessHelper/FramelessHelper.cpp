@@ -91,11 +91,14 @@ void FramelessHelper::removeExcludeItem(QWidget *item)
     d->excludeItems.remove(item);
 }
 
-void FramelessHelper::setTitleBarHeight(int v)
+void FramelessHelper::setTitleBarHeight(int value)
 {
     Q_D(FramelessHelper);
 
-    d->titleBarHeight = v;
+    if (value != d->titleBarHeight) {
+        d->titleBarHeight = value;
+        emit titleBarHeightChanged(value);
+    }
 }
 
 int FramelessHelper::titleBarHeight() const
@@ -105,14 +108,71 @@ int FramelessHelper::titleBarHeight() const
     return d->titleBarHeight;
 }
 
+qreal FramelessHelper::scaleFactor() const
+{
+    Q_D(const FramelessHelper);
+
+    return d->helper ? d->helper->scaleFactor() : 1.0;
+}
+
+bool FramelessHelper::isMaximized() const
+{
+    Q_D(const FramelessHelper);
+
+    return d->maximized;
+}
+
+void FramelessHelper::triggerMinimizeButtonAction()
+{
+    Q_D(FramelessHelper);
+
+    if (d->window) {
+        d->window->showMinimized();
+    }
+}
+
+void FramelessHelper::triggerMaximizeButtonAction()
+{
+    Q_D(FramelessHelper);
+
+    if (d->window) {
+        if (d->window->windowState() & Qt::WindowMaximized) {
+            d->window->showNormal();
+        } else {
+            d->window->showMaximized();
+        }
+    }
+}
+
+void FramelessHelper::triggerCloseButtonAction()
+{
+    Q_D(FramelessHelper);
+
+    if (d->window) {
+        d->window->close();
+    }
+}
+
 bool FramelessHelper::eventFilter(QObject *obj, QEvent *ev)
 {
     Q_D(FramelessHelper);
 
-    if (ev->type() == QEvent::WinIdChange) {
+    if (ev->type() == QEvent::WindowStateChange) {
+        bool maximized = d->window->windowState() & Qt::WindowMaximized;
+        if (maximized != d->maximized) {
+            d->maximized = maximized;
+            emit maximizedChanged(maximized);
+        }
+    } else if (ev->type() == QEvent::WinIdChange) {
         if (nullptr == d->helper) {
             auto w = d->window->windowHandle();
+
             d->helper = new NativeWindowHelper(w, d);
+            connect(d->helper, &NativeWindowHelper::scaleFactorChanged,
+                    this, &FramelessHelper::scaleFactorChanged);
+            if (!qFuzzyCompare(d->helper->scaleFactor(), 1.0)) {
+                emit scaleFactorChanged(d->helper->scaleFactor());
+            }
         }
     }
 
@@ -139,6 +199,7 @@ FramelessHelperPrivate::FramelessHelperPrivate()
     : window(nullptr)
     , helper(nullptr)
     , titleBarHeight(0)
+    , maximized(false)
 {
 }
 
@@ -158,12 +219,14 @@ QMargins FramelessHelperPrivate::maximizedMargins() const
 
 bool FramelessHelperPrivate::hitTest(const QPoint &pos) const
 {
+    int scaledTitleBarHeight = titleBarHeight * helper->scaleFactor();
+
     if (!window)
         return false;
-    else if (titleBarHeight == 0)
+    else if (scaledTitleBarHeight == 0)
         return false;
-    else if ((titleBarHeight > 0)
-             && (pos.y() >= titleBarHeight))
+    else if ((scaledTitleBarHeight > 0)
+             && (pos.y() >= scaledTitleBarHeight))
         return false;
 
     int currentIndex = -1;
